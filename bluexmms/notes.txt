@@ -1,0 +1,15 @@
+movenment <- h ^j >k |
+3G  goes to line 3
+gg  to start of a file
+w   word forward
+b   word back
+x   remove character
+i   insert
+a   append
+G   to the end fo a file
+cw  deletes a word and to insert mode (change the word)
+D   delete to the end of the line
+daw delete a word
+C   change to the end of the line
+%   move between '(' ')' and so on
+
