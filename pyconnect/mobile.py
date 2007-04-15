@@ -1,19 +1,21 @@
+import pickle
 
-x = [1,2,"ano"]
+class Server:
+    def run(self,s):
+        """Run the "s" that was received over the bluetooth"""
+        o = pickle.loads(s)
+        try:
+            if o[0] == 1:
+                #eval(o[1])
+                eval("x=1")
+            raise "wrong protocol"
+        except:
+            #TODO: print more useful info about the exception
+            print "sorry, your code raised an exception"
+            raise
+        print "Done."
 
-def python2str(x):
-    import pickle
-    import StringIO
-    output = StringIO.StringIO()
-    pickle.dump(x, output)
-    return output.getvalue()
+code = open("/tmp/x").read()
 
-def str2python(s):
-    import pickle
-    import StringIO
-    input = StringIO.StringIO(s)
-    return pickle.load(input)
-
-s= python2str([1,2])
-print str2python(s)
-
+s = Server()
+s.run(code)
