@@ -1,4 +1,4 @@
-import cPickle
+import pickle
 import bluetooth
 
 IN_PC = 0
@@ -46,6 +46,9 @@ class bluesocket:
 
     def bind(self,channel):
         self.socket.bind(("",channel))
+
+    def listen(self,queuesize):
+        self.socket.listen(queuesize)
 
     def send(self,obj):
         """ Sends a pickled object. """
