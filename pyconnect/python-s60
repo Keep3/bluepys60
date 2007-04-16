@@ -1,0 +1,160 @@
+#! /usr/bin/env python
+
+from optparse import OptionParser
+
+import pickle
+import sys
+import StringIO
+import traceback
+import time
+
+IN_PC = 0
+IN_MOBILE = 1
+
+WHERE = -1
+
+try:
+    import bluetooth;
+    WHERE = IN_PC;
+except ImportError:
+    import socket;
+    WHERE = IN_MOBILE;
+
+class bluesocket:
+    """ The bluetooth socket which works on a pc via the python-bluez 
+    as well as on a mobile via pyS60 sockets. 
+        
+    """
+
+    def __init__(self,headersize):
+        """ Inits a socket.
+
+        param:
+            headersize - fixed size of a header in bytes which is sent before each pickled object.
+                         In this header is saved how large is pickled object so a recipient knows
+                         how large data should recive recieve to succesfully unpickle the object. 
+        """
+                         
+        self.headersize = headersize
+        
+        if WHERE == IN_PC:
+           self.socket = bluetooth.BluetoothSocket(bluetooth.RFCOMM);
+        elif WHERE == IN_MOBILE:
+            self.socket = socket.socket(socket.AF_BT,socket.SOCK_STREAM);
+
+    def connect(self,addr,channel):
+        self.socket.connect( (addr,channel) )
+
+    def close(self):
+        self.socket.close()
+
+    def accept(self):
+        return self.socket.accept()
+
+    def bind(self,channel):
+        self.socket.bind(("",channel))
+
+    def send(self,obj):
+        """ Sends a pickled object. """
+        # pickkle our object & send its size in a header.
+        data = cPickle.dumps(obj);
+        self._send_header(len(data));
+
+        # send object itself.
+        return self.socket.sendall(data);
+
+    def recv(self):
+        """ Return an pickled object from socket. """
+
+        # first let recieve only a header.
+        header = self._recv_all(self.headersize)
+
+        # get data size from the header & get the data from socket.
+        datasize = int(header)
+        data = self._recv_all(datasize)
+
+        return data;
+
+    def _send_header(self,datasize): 
+        """ Send a header which contains a size of next pickled object. 
+        
+        param:
+            datasize - a size of next pickled object to send.
+        """
+        header = "%%.%dd" % self.headersize 
+        header = header % datasize
+
+        self.socket.sendall(header)
+
+    def _recv_all(self,size):
+        """ Recieves a data from the socket of a required size.
+
+        param:
+            size - requested size to recieve.
+        """
+        msg = '';
+        while len(msg) < size:
+            chunk = self.sock.recv(size-len(msg))
+            if chunk == '':
+                raise RuntimeError, "socket connection broken"
+            msg = msg + chunk
+        return msg
+
+def pickle_str(s):
+    x = "%.12d"%len(s)+s
+    return x
+
+def recv_all(sock,size):
+    """ Recieves a data from the socket of a required size.
+
+    param:
+        size - requested size to recieve.
+    """
+    msg = '';
+    while len(msg) < size:
+        chunk = sock.recv(size-len(msg))
+        if chunk == '':
+            raise RuntimeError, "socket connection broken"
+        msg = msg + chunk
+    return msg
+
+def recv(sock):
+    """ Return an pickled object from socket. """
+
+    # first let recieve only a header.
+    header = recv_all(sock,12)
+
+    # get data size from the header & get the data from socket.
+    datasize = int(header)
+    data = recv_all(sock,datasize)
+
+    return data
+
+def runfile(filename, address, verbose):
+    if verbose: print "# reading a file '%s'"%filename
+    code="".join(open(filename).readlines())
+
+    if verbose: print "# connecting to %s..."%address
+    b = bluesocket(12)
+    b.connect(address,5)
+    if verbose: print "# sending the file..."
+    b.socket.sendall(pickle_str(code))
+    if verbose: print "# receiving results..."
+    print recv(b.socket)
+
+def main():
+    usage = "usage: %prog [options] filename"
+    parser = OptionParser(usage)
+    parser.add_option("-b", "--bluetooth", 
+            help = "connect to this bluetooth device", dest = "address",
+            default = "00:19:79:86:EB:BC")
+    parser.add_option("-v", "--verbose", 
+            action = "store_true", dest = "verbose", default = False)
+    (options, args) = parser.parse_args()
+    if len(args) == 1:
+        runfile(args[0], options.address, options.verbose)
+    else:
+        parser.error("incorrect number of arguments")
+
+if __name__ == "__main__":
+    main()
