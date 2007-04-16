@@ -1,2 +1,5 @@
-This is going to be a python stub, that will be run on the phone and will boot
-up everything else. Doesn't work yet.
+This directory contains the python-s60 command. See
+
+http://code.google.com/p/bluepys60/wiki/pyconnect
+
+for documentation.
