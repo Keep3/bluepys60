@@ -17,11 +17,13 @@ class bluesocket:
         else:
             import bluetooth
             self.blue = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+        self.server = False
 
     def listen(self,channel):
         """ Listens for a connection on the channel "channel",
         returns the address of the device, that connected.
         """
+        self.server = True
         self.blue.bind(("",6))
         self.blue.listen(1)
         self.sock, info = self.blue.accept()
@@ -62,29 +64,63 @@ class bluesocket:
         header = self._recv_all(12)
         return self._recv_all(int(header))
 
+    def close(self):
+        """ Server and client exchanges a "magic" code. """
+        magic = "done123"
+        if self.server:
+            #tell the client that we want to quit
+            self.send(magic)
+            #wait until the client is ready to quit
+            assert self.recv() == magic
+        else:
+            #wait until the server sends us that he's ready to quit
+            assert self.recv() == magic
+            #tell him that we are also ready
+            self.send(magic)
+            #wait a little bit, so that the server has enough time to
+            #receive it
+            import time
+            time.sleep(0.1)
+
+def send_file(local,remote):
+    print "sending: %s -> %s" % (local, remote)
+    y.send("put")
+    y.send(remote)
+    y.send(open(local).read())
+
+def receive_file(remote, local):
+    print "receiving: %s -> %s" % (remote, local)
+    y.send("get")
+    y.send(remote)
+    f = open(local,"w")
+    f.write(y.recv())
+    f.close()
+
 print "starting"
 if mobile():
     y = bluesocket()
-    y.listen(6)
-    y.send("file")
-    y.send("test.py")
-    f = open(r"E:\ondra\test.py","w")
-    f.write(y.recv())
-    f.close()
-    y.send("done")
-else:
-    y = bluesocket()
     #y.listen(6)
-    y.connect("00:19:79:86:EB:BC",6)
+    y.connect("00:16:41:7A:33:A4",6)
     while 1:
         cmd = y.recv()
-        if cmd == "file":
+        if cmd == "put":
             filename = y.recv()
-            print "sending a file '%s'..."%filename
+            f = open(filename,"w")
+            f.write(y.recv())
+            f.close()
+        elif cmd == "get":
+            filename = y.recv()
             y.send(open(filename).read())
-            print "  done."
-        elif cmd == "done":
-            break
         else:
-            print "Unknown command:",cmd
+            break
+    assert cmd == "done"
+    y.close()
+else:
+    y = bluesocket()
+    #y.connect("00:19:79:86:EB:BC",6)
+    y.listen(6)
+    import commands
+    commands.commands(send_file,receive_file)
+    y.send("done")
+    y.close()
 print "done."
