@@ -1,19 +1,21 @@
 import sys
 import StringIO
-import traceback
 
-def run(s):
-    saveout = sys.stdout
-    out = StringIO.StringIO()
-    sys.stdout = out
+def run(s, locals):
+    buf = StringIO.StringIO()
+    out1 = sys.stdout
+    err1 = sys.stderr
     try:
+        sys.stdout = sys.stderr = buf
         try:
-            exec s in globals()
+            exec s in locals
         except:
-            traceback.print_exc(file=sys.stdout)
+            import traceback
+            traceback.print_exc()
     finally:
-        sys.stdout = saveout
-    return out.getvalue()
+        sys.stdout = out1
+        sys.stderr = err1
+    return buf.getvalue()
 
 def mobile():
     """Are we running on the S60?"""
@@ -113,7 +115,7 @@ while 1:
     print "  waiting for a code"
     x = b.recv()
     print "  running the code"
-    s = run(x)
+    s = run(x,{})
     print "  sending results"
     b.send(s)
     print "  closing"
