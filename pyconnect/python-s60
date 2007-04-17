@@ -4,6 +4,57 @@ from optparse import OptionParser
 
 from bluesocket import bluesocket
 
+done_str = "^%^&done@@"
+
+def runconsole(address, verbose):
+    import code
+    import readline
+    import atexit
+    import os
+
+    welcome_msg = """\
+Type "help", "copyright", "credits" or "license" for more information.\
+    """
+
+    class HistoryConsole(code.InteractiveConsole):
+        def __init__(self, locals=None, filename="<console>",
+	                 histfile=os.path.expanduser("~/.python-s60-history")):
+	        code.InteractiveConsole.__init__(self)
+	        self.init_history(histfile)
+	
+        def init_history(self, histfile):
+	        readline.parse_and_bind("tab: complete")
+	        if hasattr(readline, "read_history_file"):
+	            try:
+	                readline.read_history_file(histfile)
+	            except IOError:
+	                pass
+                atexit.register(self.save_history, histfile)
+	
+        def save_history(self, histfile):
+            readline.write_history_file(histfile)
+
+        def runsource(self, code, filename="<input>", symbol="single"):
+            #try:
+            #    exec code in self.locals
+            #except:
+            #    self.showtraceback()
+            if verbose: print "# sending the command..."
+            b.send(code)
+            if verbose: print "# receiving results..."
+            r = b.recv()
+            if r != "":
+                print r,
+	
+    sh = HistoryConsole()
+    if verbose: print "# connecting to %s..."%address
+    b = bluesocket()
+    b.connect(address,5)
+    sh.runsource("import sys;print sys.version")
+    sh.interact(welcome_msg)
+    b.send(done_str)
+    b.close()
+
 def runfile(filename, address, verbose):
     if verbose: print "# reading a file '%s'"%filename
     code="".join(open(filename).readlines())
@@ -14,7 +65,8 @@ def runfile(filename, address, verbose):
     if verbose: print "# sending the file..."
     b.send(code)
     if verbose: print "# receiving results..."
-    print b.recv()
+    print b.recv(),
+    b.send(done_str)
     b.close()
 
 def main():
@@ -26,7 +78,9 @@ def main():
     parser.add_option("-v", "--verbose", 
             action = "store_true", dest = "verbose", default = False)
     (options, args) = parser.parse_args()
-    if len(args) == 1:
+    if len(args) == 0:
+        runconsole(options.address, options.verbose)
+    elif len(args) == 1:
         runfile(args[0], options.address, options.verbose)
     else:
         parser.error("incorrect number of arguments")

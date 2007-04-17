@@ -112,11 +112,15 @@ while 1:
     print "listening"
     addr=b.listen(5)
     print "comp:",addr
-    print "  waiting for a code"
-    x = b.recv()
-    print "  running the code"
-    s = run(x,{})
-    print "  sending results"
-    b.send(s)
+    locals = {}
+    while 1:
+        print "  waiting for a code"
+        x = b.recv()
+        if x == "^%^&done@@":
+            break
+        print "  running the code"
+        s = run(x,locals)
+        print "  sending results"
+        b.send(s)
     print "  closing"
     b.close()
