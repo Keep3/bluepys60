@@ -1,12 +1,31 @@
-def mobile():
-    """Are we running on the S60?"""
-    m=False
-    try:
-        import e32
-        m=True
-    except:
-        pass
-    return m
+"""
+Contains a bluesocket class for communicating over bluetooth, that works both
+in linux and s60 and has exactly the same interface on both platforms.
+
+Usage:
+======
+
+server:
+-------
+
+y = bluesocket()
+y.listen(6)
+y.send("some string")
+y.recv()
+y.close()
+
+client:
+-------
+
+y = bluesocket()
+y.connect("00:16:41:7A:33:A4",6)
+y.send("some string")
+y.recv()
+y.close()
+
+These two examples above both work in linux and s60.
+
+"""
 
 class bluesocket:
     def __init__(self):
@@ -42,6 +61,7 @@ class bluesocket:
 
     def send(self, s):
         """ Sends a string "s" over the socket"""
+        #the default number of digits is 12, see also recv()
         x = "%.12d"%len(s)+s
         self.sock.sendall(x)
 
@@ -61,6 +81,7 @@ class bluesocket:
 
     def recv(self):
         """ Returns a complete string from the socket. """
+        #the default number of digits is 12, see also send()
         header = self._recv_all(12)
         return self._recv_all(int(header))
 
@@ -85,45 +106,13 @@ class bluesocket:
             import time
             time.sleep(0.1)
 
-def send_file(local,remote):
-    print "sending: %s -> %s" % (local, remote)
-    y.send("put")
-    y.send(remote)
-    y.send(open(local).read())
+def mobile():
+    """Are we running on the S60?"""
+    m=False
+    try:
+        import e32
+        m=True
+    except:
+        pass
+    return m
 
-def receive_file(remote, local):
-    print "receiving: %s -> %s" % (remote, local)
-    y.send("get")
-    y.send(remote)
-    f = open(local,"w")
-    f.write(y.recv())
-    f.close()
-
-print "starting"
-if mobile():
-    y = bluesocket()
-    #y.listen(6)
-    y.connect("00:16:41:7A:33:A4",6)
-    while 1:
-        cmd = y.recv()
-        if cmd == "put":
-            filename = y.recv()
-            f = open(filename,"w")
-            f.write(y.recv())
-            f.close()
-        elif cmd == "get":
-            filename = y.recv()
-            y.send(open(filename).read())
-        else:
-            break
-    assert cmd == "done"
-    y.close()
-else:
-    y = bluesocket()
-    #y.connect("00:19:79:86:EB:BC",6)
-    y.listen(6)
-    import commands
-    commands.commands(send_file,receive_file)
-    y.send("done")
-    y.close()
-print "done."
