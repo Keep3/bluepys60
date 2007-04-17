@@ -8,49 +8,83 @@ def mobile():
         pass
     return m
 
-def recv_all(sock,size):
-    """ Recieves a data from the socket of a required size.
+class bluesocket:
+    def __init__(self):
+        self.mobile = mobile()
+        if self.mobile:
+            import socket
+            self.blue = socket.socket(socket.AF_BT,socket.SOCK_STREAM)
+        else:
+            import bluetooth
+            self.blue = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
 
-    param:
-        size - requested size to recieve.
-    """
-    msg = '';
-    while len(msg) < size:
-        chunk = sock.recv(size-len(msg))
-        if chunk == '':
-            raise RuntimeError, "socket connection broken"
-        msg = msg + chunk
-    return msg
+    def listen(self,channel):
+        """ Listens for a connection on the channel "channel",
+        returns the address of the device, that connected.
+        """
+        self.blue.bind(("",6))
+        self.blue.listen(1)
+        self.sock, info = self.blue.accept()
+        if self.mobile:
+            return info
+        else:
+            assert len(info) == 2
+            assert info[1] == channel
+            return info[0]
 
-def recv(sock):
-    """ Return an pickled object from socket. """
+    def connect(self, address, channel):
+        """ Connects to an address "address" on the channel "channel".
+        """
+        self.blue.connect((address,channel))
+        self.sock = self.blue
 
-    # first let recieve only a header.
-    header = recv_all(sock,12)
+    def send(self, s):
+        """ Sends a string "s" over the socket"""
+        x = "%.12d"%len(s)+s
+        self.sock.sendall(x)
 
-    # get data size from the header & get the data from socket.
-    datasize = int(header)
-    data = recv_all(sock,datasize)
+    def _recv_all(self,size):
+        """ Recieves a data from the socket of a required size.
 
-    return data
+        param:
+            size - requested size to recieve.
+        """
+        msg = '';
+        while len(msg) < size:
+            chunk = self.sock.recv(size-len(msg))
+            if chunk == '':
+                raise RuntimeError, "socket connection broken"
+            msg = msg + chunk
+        return msg
 
-def pickle_str(s):
-    x = "%.12d"%len(s)+s
-    return x
+    def recv(self):
+        """ Returns a complete string from the socket. """
+        header = self._recv_all(12)
+        return self._recv_all(int(header))
 
 print "starting"
 if mobile():
-    #f = open(r"E:\ondra\test.py","w")
-    #f.write("xj=35")
-    #f.close()
-    #import sys
-    #sys.path.append("E:\ondra")
-    #import test
-    #print test.xj
-    import socket
-    #uncomment this - it will raise an exception in the mobile app.
-    #b = socket.socket(socket.AF_BT,socket.SOCK_STREAM)
-    #b.connect(("11:11:11:11:11:11",5))
+    y = bluesocket()
+    y.listen(6)
+    y.send("file")
+    y.send("test.py")
+    f = open(r"E:\ondra\test.py","w")
+    f.write(y.recv())
+    f.close()
+    y.send("done")
 else:
-    print "listening"
+    y = bluesocket()
+    #y.listen(6)
+    y.connect("00:19:79:86:EB:BC",6)
+    while 1:
+        cmd = y.recv()
+        if cmd == "file":
+            filename = y.recv()
+            print "sending a file '%s'..."%filename
+            y.send(open(filename).read())
+            print "  done."
+        elif cmd == "done":
+            break
+        else:
+            print "Unknown command:",cmd
 print "done."
